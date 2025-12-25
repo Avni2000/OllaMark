@@ -97,11 +97,17 @@ export default class MyPlugin extends Plugin {
 			workspace.revealLeaf(leaf);
 			this.sidebarOpen = true;
 			
-			// Pass settings to the view
+			// Pass plugin instance and settings to the view, then ensure storage is ready
 			const view = leaf.view as any;
 			if (view && typeof view === 'object') {
+				view.plugin = this;
 				view.ollamaUrl = this.settings.ollamaUrl;
 				view.ollamaModel = this.settings.ollamaModel;
+				
+				// Ensure storage is initialized (handles the case where view already exists)
+				if (typeof view.ensurePluginAndStorage === 'function') {
+					await view.ensurePluginAndStorage();
+				}
 			}
 		} else {
 			new Notice('Could not open sidebar: no right leaf available.');

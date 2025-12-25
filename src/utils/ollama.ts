@@ -30,7 +30,8 @@ export async function callOllama(
 export async function* streamOllama(
     ollamaUrl: string,
     model: string,
-    messages: Array<{ role: string; content: string }>
+    messages: Array<{ role: string; content: string }>,
+    abortSignal?: AbortSignal
 ) {
     try {
         const response = await fetch(`${ollamaUrl}/api/chat`, {
@@ -43,6 +44,7 @@ export async function* streamOllama(
                 messages,
                 stream: true,
             }),
+            signal: abortSignal,
         });
 
         if (!response.ok) {
@@ -66,7 +68,7 @@ export async function* streamOllama(
 
             // Process all complete lines
             for (let i = 0; i < lines.length - 1; i++) {
-                const line = lines[i].trim();
+                const line = lines[i]?.trim();
                 if (line) {
                     try {
                         const data = JSON.parse(line);
@@ -80,7 +82,7 @@ export async function* streamOllama(
             }
 
             // Keep the last incomplete line in buffer
-            buffer = lines[lines.length - 1];
+            buffer = lines[lines.length - 1] || '';
         }
 
         // Process any remaining data
@@ -95,6 +97,11 @@ export async function* streamOllama(
             }
         }
     } catch (error) {
+        // If the request was aborted (user clicked stop), don't throw an error
+        if (error instanceof Error && error.name === 'AbortError') {
+            console.log('Stream aborted by user');
+            return;
+        }
         throw new Error(`Failed to stream from Ollama: ${error}`);
     }
 }
