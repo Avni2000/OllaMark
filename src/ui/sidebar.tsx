@@ -4,6 +4,8 @@ import * as ReactDOM from 'react-dom/client';
 import { marked } from 'marked';
 import { streamOllama } from '../utils/ollama';
 import { ChatStorage, ChatsData, DEFAULT_CHATS_DATA } from '../utils/chatStorage';
+import { parseContext, buildContextualPrompt } from '../utils/contextParser';
+import { PromptInput } from './PromptInput';
 import type MyPlugin from '../main';
 
 export const VIEW_TYPE = 'ollamark-sidebar';
@@ -109,6 +111,7 @@ export class OllamarkSidebarView extends ItemView {
                 ollamaUrl={this.ollamaUrl}
                 ollamaModel={this.ollamaModel}
                 chatStorage={this.chatStorage}
+                app={this.app}
             />
         );
     }
@@ -132,9 +135,10 @@ interface ChatbotInterfaceProps {
     ollamaUrl: string;
     ollamaModel: string;
     chatStorage: ChatStorage | null;
+    app: any;
 }
 
-function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterfaceProps) {
+function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage, app }: ChatbotInterfaceProps) {
     const getDefaultMessages = (): Message[] => [
         {
             id: '1',
@@ -151,18 +155,83 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterf
     const [allChats, setAllChats] = React.useState<Array<{ id: string; title: string; updatedAt: number }>>([]);
     const [showChatList, setShowChatList] = React.useState(false);
     const [isStorageReady, setIsStorageReady] = React.useState(false);
+    const [activeFile, setActiveFile] = React.useState<{ path: string; basename: string } | null>(null);
+    const [contextFiles, setContextFiles] = React.useState<Array<{ path: string; basename: string; isActive: boolean }>>([]);
     
     // Track the previous chatStorage to detect when it changes from null to initialized
     const prevChatStorageRef = React.useRef<ChatStorage | null>(null);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
     const streamingIdRef = React.useRef<string | null>(null);
     const abortControllerRef = React.useRef<AbortController | null>(null);
-    const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
     // Debug: log messages whenever they change
     React.useEffect(() => {
         console.log('[ChatStorage] Messages state updated:', messages.length, 'messages');
     }, [messages]);
+
+    // Track active file changes in Obsidian
+    React.useEffect(() => {
+        const updateActiveFile = () => {
+            const file = app.workspace.getActiveFile();
+            if (file && file.extension === 'md') {
+                setActiveFile({ path: file.path, basename: file.basename });
+            } else {
+                setActiveFile(null);
+            }
+        };
+
+        // Initial check
+        updateActiveFile();
+
+        // Listen for active file changes
+        const eventRef = app.workspace.on('active-leaf-change', updateActiveFile);
+        
+        return () => {
+            app.workspace.offref(eventRef);
+        };
+    }, [app]);
+
+    // Update context files when active file or input changes
+    React.useEffect(() => {
+        const files: Array<{ path: string; basename: string; isActive: boolean }> = [];
+        
+        // Add active file if exists
+        if (activeFile) {
+            files.push({ ...activeFile, isActive: true });
+        }
+        
+        // Parse [[...]] links from input to show manually linked files
+        const linkRegex = /\[\[([^\]|]+)(\|[^\]]+)?\]\]/g;
+        const matches = Array.from(inputValue.matchAll(linkRegex));
+        const linkedPaths = new Set<string>();
+        
+        for (const match of matches) {
+            const linkPath = match[1]?.trim();
+            if (linkPath) {
+                const file = app.metadataCache.getFirstLinkpathDest(linkPath, '');
+                if (file) {
+                    // Avoid duplicate if it's the same as active file
+                    if (!activeFile || file.path !== activeFile.path) {
+                        if (!linkedPaths.has(file.path)) {
+                            linkedPaths.add(file.path);
+                            files.push({ path: file.path, basename: file.basename, isActive: false });
+                        }
+                    }
+                }
+            }
+        }
+        
+        setContextFiles(files);
+    }, [activeFile, inputValue, app]);
+
+    const removeContextFile = (path: string) => {
+        // If it's the active file, we just mark it as "removed" (we won't include it in context)
+        if (activeFile && activeFile.path === path) {
+            setActiveFile(null);
+        }
+        // If it's a linked file, remove it from input
+        // (This is tricky - for now we just won't remove from input, user can manually edit)
+    };
 
     const refreshChatList = React.useCallback(() => {
         if (!chatStorage) return;
@@ -350,9 +419,19 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterf
             await chatStorage.save();
         }
 
+        // Parse context from the input (extract [[...]] references) and include active file
+        console.log('[Context] Parsing context from input...');
+        const context = await parseContext(inputValue, app, { 
+            activeFilePath: activeFile?.path 
+        });
+        console.log('[Context] Found', context.linkedFiles.length, 'context files (including active file)');
+
+        // Build contextual prompt if there are linked files
+        const processedContent = buildContextualPrompt(inputValue, context);
+
         const userMessage: Message = {
             id: Date.now().toString(),
-            content: inputValue,
+            content: inputValue, // Store original message in UI
             sender: 'user',
             timestamp: new Date(),
         };
@@ -408,7 +487,7 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterf
             
             conversationMessages.push({
                 role: 'user',
-                content: inputValue
+                content: processedContent // Use processed content with file contents included
             });
 
             // Stream the response
@@ -462,21 +541,6 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterf
             abortControllerRef.current.abort();
         }
     };
-
-    const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleSendMessage();
-        }
-    };
-
-    // Auto-resize textarea as content grows
-    React.useEffect(() => {
-        if (textareaRef.current) {
-            textareaRef.current.style.height = 'auto';
-            textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-        }
-    }, [inputValue]);
 
     return (
         <div style={{
@@ -673,36 +737,90 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage }: ChatbotInterf
                 <div ref={messagesEndRef} />
             </div>
 
+            {/* Context Files Display */}
+            {contextFiles.length > 0 && (
+                <div style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    padding: '8px 0',
+                    borderTop: '1px solid var(--divider-color)',
+                }}>
+                    <span style={{
+                        fontSize: '11px',
+                        color: 'var(--text-muted)',
+                        marginRight: '4px',
+                        alignSelf: 'center',
+                    }}>
+                        Context:
+                    </span>
+                    {contextFiles.map(file => (
+                        <div
+                            key={file.path}
+                            style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                backgroundColor: file.isActive 
+                                    ? 'var(--interactive-accent)' 
+                                    : 'var(--background-secondary)',
+                                color: file.isActive 
+                                    ? 'var(--text-on-accent)' 
+                                    : 'var(--text-normal)',
+                                fontSize: '11px',
+                                maxWidth: '150px',
+                            }}
+                            title={`${file.path}${file.isActive ? ' (active file)' : ''}`}
+                        >
+                            <span style={{
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}>
+                                {file.isActive ? ' ' : ' '}{file.basename}
+                            </span>
+                            <button
+                                onClick={() => removeContextFile(file.path)}
+                                style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '14px',
+                                    height: '14px',
+                                    padding: 0,
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    backgroundColor: 'transparent',
+                                    color: 'inherit',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    opacity: 0.7,
+                                }}
+                                title="Remove from context"
+                            >
+                                <span>&#10799;</span>
+                            </button>
+                        </div>
+                    ))}
+                </div>
+            )}
+
             {/* Input Area */}
             <div style={{
                 display: 'flex',
                 gap: '8px',
-                borderTop: '1px solid var(--divider-color)',
-                paddingTop: '12px',
+                borderTop: contextFiles.length > 0 ? 'none' : '1px solid var(--divider-color)',
+                paddingTop: contextFiles.length > 0 ? '0' : '12px',
             }}>
-                <textarea
-                    ref={textareaRef}
+                <PromptInput
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    placeholder={isStorageReady ? "Type a message... (Shift+Enter for new line)" : "Loading..."}
+                    onChange={setInputValue}
+                    onSubmit={handleSendMessage}
                     disabled={isLoading || !isStorageReady}
-                    style={{
-                        flex: 1,
-                        padding: '8px 10px',
-                        borderRadius: '4px',
-                        border: '1px solid var(--background-modifier-border)',
-                        backgroundColor: 'var(--background-secondary)',
-                        color: 'var(--text-normal)',
-                        fontSize: '13px',
-                        fontFamily: 'var(--font-text)',
-                        outline: 'none',
-                        opacity: isStorageReady ? 1 : 0.5,
-                        resize: 'none',
-                        minHeight: '36px',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                    }}
+                    placeholder={isStorageReady ? "Type a message... (Shift+Enter for new line)" : "Loading..."}
+                    app={app}
                 />
                 {isLoading ? (
                     <button

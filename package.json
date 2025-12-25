@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-sample-plugin",
+	"name": "ollamark",
 	"version": "1.0.0",
-	"description": "This is a sample plugin for Obsidian (https://obsidian.md)",
+	"description": "Ollama in Obsidian: Format and write with local LLMs directly in your notes.",
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
@@ -26,6 +26,11 @@
 		"typescript-eslint": "8.35.1"
 	},
 	"dependencies": {
+		"@codemirror/autocomplete": "^6.20.0",
+		"@codemirror/commands": "^6.10.1",
+		"@codemirror/lang-markdown": "^6.5.0",
+		"@codemirror/state": "^6.5.3",
+		"@codemirror/view": "^6.39.7",
 		"marked": "^17.0.1",
 		"obsidian": "latest",
 		"react": "^18.0.0",
