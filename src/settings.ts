@@ -2,11 +2,13 @@ import {App, PluginSettingTab, Setting} from "obsidian";
 import MyPlugin from "./main";
 
 export interface MyPluginSettings {
-	mySetting: string;
+	ollamaUrl: string;
+	ollamaModel: string;
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+	ollamaUrl: 'http://localhost:11434',
+	ollamaModel: 'qwen2.5:14b'
 }
 
 export class SampleSettingTab extends PluginSettingTab {
@@ -23,13 +25,24 @@ export class SampleSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		new Setting(containerEl)
-			.setName('Settings #1')
-			.setDesc('It\'s a secret')
+			.setName('Ollama URL')
+			.setDesc('URL where Ollama is running (default: http://localhost:11434)')
 			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
+				.setPlaceholder('http://localhost:11434')
+				.setValue(this.plugin.settings.ollamaUrl)
 				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
+					this.plugin.settings.ollamaUrl = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Ollama Model')
+			.setDesc('Model name to use for chat (default: qwen2.5:14b)')
+			.addText(text => text
+				.setPlaceholder('qwen2.5:14b')
+				.setValue(this.plugin.settings.ollamaModel)
+				.onChange(async (value) => {
+					this.plugin.settings.ollamaModel = value;
 					await this.plugin.saveSettings();
 				}));
 	}
