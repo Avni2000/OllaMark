@@ -1,7 +1,7 @@
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
-import { callOllama } from '../utils/ollama';
+import { streamOllama } from '../utils/ollama';
 
 export const VIEW_TYPE = 'ollamark-sidebar';
 
@@ -68,6 +68,7 @@ function ChatbotInterface({ ollamaUrl, ollamaModel }: ChatbotInterfaceProps) {
     const [inputValue, setInputValue] = React.useState('');
     const [isLoading, setIsLoading] = React.useState(false);
     const messagesEndRef = React.useRef<HTMLDivElement>(null);
+    const streamingIdRef = React.useRef<string | null>(null);
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -91,6 +92,19 @@ function ChatbotInterface({ ollamaUrl, ollamaModel }: ChatbotInterfaceProps) {
         setInputValue('');
         setIsLoading(true);
 
+        // Create assistant message with streaming content
+        const assistantMessageId = (Date.now() + 1).toString();
+        streamingIdRef.current = assistantMessageId;
+
+        const assistantMessage: Message = {
+            id: assistantMessageId,
+            content: '',
+            sender: 'assistant',
+            timestamp: new Date(),
+        };
+
+        setMessages(prev => [...prev, assistantMessage]);
+
         try {
             const conversationMessages = messages
                 .filter(m => m.sender === 'user' || m.sender === 'assistant')
@@ -103,15 +117,22 @@ function ChatbotInterface({ ollamaUrl, ollamaModel }: ChatbotInterfaceProps) {
                 content: inputValue
             });
 
-            const response = await callOllama(ollamaUrl, ollamaModel, conversationMessages);
-
-            const assistantMessage: Message = {
-                id: (Date.now() + 1).toString(),
-                content: response,
-                sender: 'assistant',
-                timestamp: new Date(),
-            };
-            setMessages(prev => [...prev, assistantMessage]);
+            // Stream the response
+            for await (const token of streamOllama(ollamaUrl, ollamaModel, conversationMessages)) {
+                if (streamingIdRef.current === assistantMessageId) {
+                    setMessages(prev => {
+                        const updated = [...prev];
+                        const msgIndex = updated.findIndex(m => m.id === assistantMessageId);
+                        if (msgIndex !== -1) {
+                            updated[msgIndex] = {
+                                ...updated[msgIndex],
+                                content: updated[msgIndex].content + token
+                            };
+                        }
+                        return updated;
+                    });
+                }
+            }
         } catch (error) {
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
@@ -122,6 +143,7 @@ function ChatbotInterface({ ollamaUrl, ollamaModel }: ChatbotInterfaceProps) {
             setMessages(prev => [...prev, errorMessage]);
         } finally {
             setIsLoading(false);
+            streamingIdRef.current = null;
         }
     };
 
@@ -192,23 +214,6 @@ function ChatbotInterface({ ollamaUrl, ollamaModel }: ChatbotInterfaceProps) {
                         </div>
                     </div>
                 ))}
-                {isLoading && (
-                    <div style={{
-                        display: 'flex',
-                        justifyContent: 'flex-start',
-                        marginBottom: '8px',
-                    }}>
-                        <div style={{
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            backgroundColor: 'var(--background-secondary)',
-                            color: 'var(--text-muted)',
-                            fontSize: '13px',
-                        }}>
-                            Thinking...
-                        </div>
-                    </div>
-                )}
                 <div ref={messagesEndRef} />
             </div>
 
