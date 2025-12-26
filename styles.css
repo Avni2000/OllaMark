@@ -9,3 +9,76 @@ available in the app when your plugin is enabled.
 .cm-tooltip.cm-tooltip-autocomplete {
     z-index: 10000 !important;
 }
+
+.ollamark-diff-modal {
+    max-width: 720px;
+}
+
+.ollamark-diff-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-top: 12px;
+}
+
+.ollamark-diff-item {
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    padding: 8px;
+    background-color: var(--background-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ollamark-diff-block {
+    padding: 6px 8px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    font-family: var(--font-monospace);
+    font-size: var(--font-ui-small);
+}
+
+.ollamark-diff-context {
+    color: var(--text-muted);
+    background-color: var(--background-primary-alt);
+}
+
+.ollamark-diff-add {
+    background-color: rgba(46, 204, 113, 0.2);
+    color: var(--text-normal);
+}
+
+.ollamark-diff-remove {
+    background-color: rgba(231, 76, 60, 0.2);
+    color: var(--text-normal);
+}
+
+.ollamark-diff-newline {
+    color: var(--text-muted);
+}
+
+.ollamark-diff-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.ollamark-diff-actions .is-active {
+    box-shadow: inset 0 0 0 1px var(--interactive-accent);
+}
+
+.ollamark-diff-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+
+.ollamark-diff-title {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+}

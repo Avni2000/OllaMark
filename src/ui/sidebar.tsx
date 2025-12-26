@@ -112,6 +112,7 @@ export class OllamarkSidebarView extends ItemView {
                 ollamaModel={this.ollamaModel}
                 chatStorage={this.chatStorage}
                 app={this.app}
+                plugin={this.plugin}
             />
         );
     }
@@ -136,9 +137,10 @@ interface ChatbotInterfaceProps {
     ollamaModel: string;
     chatStorage: ChatStorage | null;
     app: any;
+    plugin: MyPlugin | null;
 }
 
-function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage, app }: ChatbotInterfaceProps) {
+function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage, app, plugin }: ChatbotInterfaceProps) {
     const getDefaultMessages = (): Message[] => [
         {
             id: '1',
@@ -578,7 +580,7 @@ function ChatbotInterface({ ollamaUrl, ollamaModel, chatStorage, app }: ChatbotI
                         }}
                         title="View all chats"
                     >
-                        📋 Chats
+                        Chats
                     </button>
                     <button
                         onClick={createNewChat}

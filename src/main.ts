@@ -1,7 +1,9 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, addIcon } from 'obsidian';
+import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile, addIcon } from 'obsidian';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
+import { formatMarkdownWithAI } from './utils/formatter';
+import { reviewDiff } from './ui/DiffReviewModal';
 
 // Remember to rename these classes and interfaces!
 
@@ -38,6 +40,14 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 		// This adds an editor command that can perform some operation on the current editor instance
+		this.addCommand({
+			id: 'format-selection-with-ai',
+			name: 'Format selection with AI',
+			editorCallback: async (editor: Editor) => {
+				await this.formatSelectionWithAI(editor);
+			}
+		});
+		// Legacy sample command
 		this.addCommand({
 			id: 'replace-selected',
 			name: 'Replace selected content',
@@ -83,6 +93,108 @@ export default class MyPlugin extends Plugin {
 
 		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
 		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
+
+		this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor) => {
+			if (!editor.getSelection()) return;
+			menu.addItem(item => {
+				item.setTitle('Format with AI');
+				item.setIcon('ollamark');
+				item.onClick(() => {
+					void this.formatSelectionWithAI(editor);
+				});
+			});
+		}));
+	}
+
+	private async formatSelectionWithAI(editor: Editor): Promise<void> {
+		const selection = editor.getSelection();
+		if (!selection.trim()) {
+			new Notice('Select text to format before using AI.');
+			return;
+		}
+
+		const activeFile = this.app.workspace.getActiveFile();
+		const runningNotice = new Notice('Formatting selection with AI...', 8000);
+
+		try {
+			const formattedResponse = await formatMarkdownWithAI({
+				ollamaUrl: this.settings.ollamaUrl,
+				model: this.settings.ollamaModel,
+				text: selection,
+				noteTitle: activeFile?.basename,
+			});
+			runningNotice.hide();
+
+			const { content, proposedTitle } = this.extractTitle(formattedResponse);
+			if (content === selection && (!proposedTitle || proposedTitle === activeFile?.basename)) {
+				new Notice('AI kept the selection unchanged.');
+				return;
+			}
+
+			const review = await reviewDiff(this.app, {
+				originalText: selection,
+				modifiedText: content,
+				currentTitle: activeFile?.basename,
+				newTitle: proposedTitle,
+			});
+
+			if (!review) {
+				new Notice('Formatting canceled.');
+				return;
+			}
+
+			editor.replaceSelection(review.text);
+			new Notice('Selection formatted.');
+
+			if (review.renameTo && activeFile) {
+				await this.renameNoteIfNeeded(activeFile, review.renameTo);
+			}
+		} catch (error) {
+			runningNotice.hide();
+			console.error('AI formatting failed:', error);
+			new Notice('Could not format selection. See console for details.');
+		}
+	}
+
+	private extractTitle(content: string): { content: string; proposedTitle?: string } {
+		const normalized = content.replace(/^\uFEFF/, '').replace(/^\u200B/, '');
+		const headingMatch = normalized.match(/^\s*#\s+(.+)\s*(?:\r?\n|$)/);
+		if (!headingMatch) {
+			return { content: normalized };
+		}
+		const consumed = headingMatch[0] ?? '';
+		const remaining = normalized.slice(consumed.length).replace(/^\s+/, '');
+		return {
+			content: remaining,
+			proposedTitle: headingMatch[1]?.trim() || undefined,
+		};
+	}
+
+	private sanitizeFileName(name: string): string {
+		return name.replace(/[\\/:*?"<>|]/g, '').trim();
+	}
+
+	private async renameNoteIfNeeded(file: TFile, requestedTitle: string): Promise<void> {
+		const sanitized = this.sanitizeFileName(requestedTitle);
+		if (!sanitized || sanitized === file.basename) {
+			return;
+		}
+
+		const folderPath = file.parent?.path ?? '';
+		const newPath = folderPath ? `${folderPath}/${sanitized}.${file.extension}` : `${sanitized}.${file.extension}`;
+		const existing = this.app.vault.getAbstractFileByPath(newPath);
+		if (existing) {
+			new Notice('Cannot rename note: target name already exists.');
+			return;
+		}
+
+		try {
+			await this.app.fileManager.renameFile(file, newPath);
+			new Notice(`Note renamed to ${sanitized}.`);
+		} catch (error) {
+			console.error('Failed to rename note:', error);
+			new Notice('Could not rename note. See console for details.');
+		}
 	}
 
 	async activateView() {
