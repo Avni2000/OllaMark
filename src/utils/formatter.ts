@@ -10,13 +10,17 @@ interface FormatMarkdownOptions {
     model: string;
     text: string;
     noteTitle?: string;
+    formatComments?: boolean;
 }
 
 
 
 export async function formatMarkdownWithAI(options: FormatMarkdownOptions): Promise<string> {
-	const { ollamaUrl, model, text, noteTitle } = options;
+	const { ollamaUrl, model, text, noteTitle, formatComments = true } = options;
 	const titleLine = noteTitle ? `Title: ${noteTitle}\n` : '';
+
+	// Extract and preserve HTML comments if formatComments is true
+	const { textToFormat, comments } = formatComments ? { textToFormat: text, comments: [] } : extractComments(text);
 
 	const messages = [
 		{
@@ -25,12 +29,15 @@ export async function formatMarkdownWithAI(options: FormatMarkdownOptions): Prom
 		},
 		{
 			role: 'user',
-			content: `${titleLine}Format the following markdown selection:\n---\n${text}\n---`
+			content: `${titleLine}Format the following markdown selection:\n---\n${textToFormat}\n---`
 		}
 	];
 
 	const response = await callOllama(ollamaUrl, model, messages);
-	return stripCodeFence(response.trim());
+	const formatted = stripCodeFence(response.trim());
+
+	// Restore comments if they were extracted
+	return formatComments ? formatted : restoreComments(formatted, comments);
 }
 
 
@@ -38,7 +45,7 @@ export async function formatMarkdownWithAI(options: FormatMarkdownOptions): Prom
 export async function formatSelectionWithAI(
 	editor: Editor,
 	app: App,
-	settings: { ollamaUrl: string; ollamaModel: string },
+	settings: { ollamaUrl: string; ollamaModel: string; formatComments: boolean },
 	buildSuggestions: Function,
 	showInlineSuggestions: Function,
 	renameNoteIfNeeded: (file: TFile, requestedTitle: string, app: App) => Promise<void>
@@ -62,6 +69,7 @@ export async function formatSelectionWithAI(
 			model: settings.ollamaModel,
 			text: selection,
 			noteTitle: activeFile?.basename,
+			formatComments: settings.formatComments,
 		});
 		runningNotice.hide();
 
@@ -164,4 +172,35 @@ export async function formatSelectionWithAI(
 function stripCodeFence(output: string): string {
     const fenceMatch = output.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/i);
     return fenceMatch?.[1] ?? output;
+}
+
+interface CommentPlaceholder {
+	placeholder: string;
+	original: string;
+}
+
+function extractComments(text: string): { textToFormat: string; comments: CommentPlaceholder[] } {
+	const comments: CommentPlaceholder[] = [];
+	let counter = 0;
+
+	// Replace HTML comments with unique placeholders
+	const textToFormat = text.replace(/<!--[\s\S]*?-->/g, (match) => {
+		const placeholder = `__COMMENT_PLACEHOLDER_${counter}__`;
+		comments.push({ placeholder, original: match });
+		counter++;
+		return placeholder;
+	});
+
+	return { textToFormat, comments };
+}
+
+function restoreComments(formatted: string, comments: CommentPlaceholder[]): string {
+	let result = formatted;
+	
+	// Restore each comment from its placeholder
+	for (const { placeholder, original } of comments) {
+		result = result.replace(placeholder, original);
+	}
+	
+	return result;
 }

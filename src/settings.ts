@@ -5,11 +5,13 @@ import { getAvailableModels } from "./utils/ollama";
 export interface MyPluginSettings {
 	ollamaUrl: string;
 	ollamaModel: string;
+	formatComments: boolean;
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
 	ollamaUrl: 'http://localhost:11434',
-	ollamaModel: 'qwen2.5:14b'
+	ollamaModel: '',
+	formatComments: true
 }
 
 export class SampleSettingTab extends PluginSettingTab {
@@ -45,6 +47,16 @@ export class SampleSettingTab extends PluginSettingTab {
 
 		// Fetch and populate models
 		this.populateModelDropdown(modelSetting);
+
+		new Setting(containerEl)
+			.setName('Format comments')
+			.setDesc('Allow AI to format HTML comments (<!-- -->). When disabled, comments are preserved as-is.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.formatComments)
+				.onChange(async (value) => {
+					this.plugin.settings.formatComments = value;
+					await this.plugin.saveSettings();
+				}));
 	}
 
 	private async populateModelDropdown(setting: Setting) {
@@ -65,6 +77,14 @@ export class SampleSettingTab extends PluginSettingTab {
 					models.forEach(model => {
 						dropdown.addOption(model, model);
 					});
+					
+					// Auto-select first model if current setting is empty or not in list
+					const currentModel = this.plugin.settings.ollamaModel;
+					if (!currentModel || !models.includes(currentModel)) {
+						this.plugin.settings.ollamaModel = models[0] || '';
+						void this.plugin.saveSettings();
+					}
+					
 					dropdown.setValue(this.plugin.settings.ollamaModel);
 					dropdown.onChange(async (value) => {
 						this.plugin.settings.ollamaModel = value;
