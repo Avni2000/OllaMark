@@ -1,7 +1,11 @@
+/**
+ * @file main.ts
+ * @description Main entry point for the OllaMark Obsidian plugin.
+ */
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile, addIcon } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
-import { formatMarkdownWithAI } from './utils/formatter';
+import { formatMarkdownWithAI, formatSelectionWithAI, renameNoteIfNeeded } from './utils/formatter';
 import { inlineDiffExtension, buildSuggestions, showInlineSuggestions, InlineDiffOutcome } from './ui/InlineDiff';
 
 export default class MyPlugin extends Plugin {
@@ -16,14 +20,21 @@ export default class MyPlugin extends Plugin {
 		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 		const statusBarItemEl = this.addStatusBarItem();
 		statusBarItemEl.setText('Status bar text');
-		
+
 		
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'format-selection-with-ai',
 			name: 'Format selection with AI',
 			editorCallback: async (editor: Editor) => {
-				await this.formatSelectionWithAI(editor);
+				await formatSelectionWithAI(
+					editor,
+					this.app,
+					this.settings,
+					buildSuggestions,
+					showInlineSuggestions,
+					renameNoteIfNeeded
+				);
 			}
 		});
 
@@ -46,127 +57,19 @@ export default class MyPlugin extends Plugin {
 				item.setTitle('Format with AI');
 				item.setIcon('ollamark');
 				item.onClick(() => {
-					void this.formatSelectionWithAI(editor);
+					void formatSelectionWithAI(
+						editor,
+						this.app,
+						this.settings,
+						buildSuggestions,
+						showInlineSuggestions,
+						renameNoteIfNeeded
+					);
 				});
 			});
 		}));
 	}
 
-	private async formatSelectionWithAI(editor: Editor): Promise<void> {
-		const selection = editor.getSelection();
-		if (!selection.trim()) {
-			new Notice('Select text to format before using AI.');
-			return;
-		}
-
-		// Capture selection positions BEFORE calling AI (positions might change during async call)
-		const selectionFrom = editor.posToOffset(editor.getCursor('from'));
-		const selectionTo = editor.posToOffset(editor.getCursor('to'));
-
-		const activeFile = this.app.workspace.getActiveFile();
-		const runningNotice = new Notice('Formatting selection with AI...', 8000);
-
-		try {
-			const formattedResponse = await formatMarkdownWithAI({
-				ollamaUrl: this.settings.ollamaUrl,
-				model: this.settings.ollamaModel,
-				text: selection,
-				noteTitle: activeFile?.basename,
-			});
-			runningNotice.hide();
-
-			const { content, proposedTitle } = this.extractTitle(formattedResponse);
-			if (content === selection && (!proposedTitle || proposedTitle === activeFile?.basename)) {
-				new Notice('AI kept the selection unchanged.');
-				return;
-			}
-
-			// Get the EditorView from Obsidian's editor
-			// @ts-expect-error - accessing internal CM6 editor
-			const editorView: EditorView | undefined = editor.cm;
-			if (!editorView) {
-				new Notice('Could not access editor view for inline diff.');
-				return;
-			}
-
-			// Verify document hasn't changed length at all (user edited during AI call)
-			const docLength = editorView.state.doc.length;
-			if (selectionTo > docLength) {
-				new Notice('Document changed while AI was processing. Please try again.');
-				return;
-			}
-
-			// Build suggestions from the diff
-			const suggestions = buildSuggestions(selection, content, selectionFrom, selectionTo);
-
-			if (suggestions.length === 0 && !proposedTitle) {
-				new Notice('AI kept the selection unchanged.');
-				return;
-			}
-
-			// Show inline suggestions and wait for user to accept/reject
-			const review = await showInlineSuggestions(editorView, suggestions, {
-				proposedTitle,
-				currentTitle: activeFile?.basename,
-			});
-
-			if (!review) {
-				new Notice('Formatting canceled.');
-				return;
-			}
-
-			new Notice('Selection formatted.');
-
-			if (review.renameTo && activeFile) {
-				await this.renameNoteIfNeeded(activeFile, review.renameTo);
-			}
-		} catch (error) {
-			runningNotice.hide();
-			console.error('AI formatting failed:', error);
-			new Notice('Could not format selection. See console for details.');
-		}
-	}
-
-	private extractTitle(content: string): { content: string; proposedTitle?: string } {
-		const normalized = content.replace(/^\uFEFF/, '').replace(/^\u200B/, '');
-		const headingMatch = normalized.match(/^\s*#\s+(.+)\s*(?:\r?\n|$)/);
-		if (!headingMatch) {
-			return { content: normalized };
-		}
-		const consumed = headingMatch[0] ?? '';
-		const remaining = normalized.slice(consumed.length).replace(/^\s+/, '');
-		return {
-			content: remaining,
-			proposedTitle: headingMatch[1]?.trim() || undefined,
-		};
-	}
-
-	private sanitizeFileName(name: string): string {
-		return name.replace(/[\\/:*?"<>|]/g, '').trim();
-	}
-
-	private async renameNoteIfNeeded(file: TFile, requestedTitle: string): Promise<void> {
-		const sanitized = this.sanitizeFileName(requestedTitle);
-		if (!sanitized || sanitized === file.basename) {
-			return;
-		}
-
-		const folderPath = file.parent?.path ?? '';
-		const newPath = folderPath ? `${folderPath}/${sanitized}.${file.extension}` : `${sanitized}.${file.extension}`;
-		const existing = this.app.vault.getAbstractFileByPath(newPath);
-		if (existing) {
-			new Notice('Cannot rename note: target name already exists.');
-			return;
-		}
-
-		try {
-			await this.app.fileManager.renameFile(file, newPath);
-			new Notice(`Note renamed to ${sanitized}.`);
-		} catch (error) {
-			console.error('Failed to rename note:', error);
-			new Notice('Could not rename note. See console for details.');
-		}
-	}
 
 	onunload() {
 		// Plugin cleanup
