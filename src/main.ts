@@ -1,9 +1,10 @@
 import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile, addIcon } from 'obsidian';
+import { EditorView } from '@codemirror/view';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
 import { formatMarkdownWithAI } from './utils/formatter';
-import { reviewDiff } from './ui/DiffReviewModal';
+import { inlineDiffExtension, buildSuggestions, showInlineSuggestions, InlineDiffOutcome } from './ui/InlineDiff';
 
 // Remember to rename these classes and interfaces!
 
@@ -87,6 +88,9 @@ export default class MyPlugin extends Plugin {
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
+
+		// Register the inline diff CM6 extension
+		this.registerEditorExtension(inlineDiffExtension);
 		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
 		// 	new Notice("Click");
 		// });
@@ -113,6 +117,10 @@ export default class MyPlugin extends Plugin {
 			return;
 		}
 
+		// Capture selection positions BEFORE calling AI (positions might change during async call)
+		const selectionFrom = editor.posToOffset(editor.getCursor('from'));
+		const selectionTo = editor.posToOffset(editor.getCursor('to'));
+
 		const activeFile = this.app.workspace.getActiveFile();
 		const runningNotice = new Notice('Formatting selection with AI...', 8000);
 
@@ -131,11 +139,33 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			const review = await reviewDiff(this.app, {
-				originalText: selection,
-				modifiedText: content,
+			// Get the EditorView from Obsidian's editor
+			// @ts-expect-error - accessing internal CM6 editor
+			const editorView: EditorView | undefined = editor.cm;
+			if (!editorView) {
+				new Notice('Could not access editor view for inline diff.');
+				return;
+			}
+
+			// Verify document hasn't changed length at all (user edited during AI call)
+			const docLength = editorView.state.doc.length;
+			if (selectionTo > docLength) {
+				new Notice('Document changed while AI was processing. Please try again.');
+				return;
+			}
+
+			// Build suggestions from the diff
+			const suggestions = buildSuggestions(selection, content, selectionFrom, selectionTo);
+
+			if (suggestions.length === 0 && !proposedTitle) {
+				new Notice('AI kept the selection unchanged.');
+				return;
+			}
+
+			// Show inline suggestions and wait for user to accept/reject
+			const review = await showInlineSuggestions(editorView, suggestions, {
+				proposedTitle,
 				currentTitle: activeFile?.basename,
-				newTitle: proposedTitle,
 			});
 
 			if (!review) {
@@ -143,7 +173,6 @@ export default class MyPlugin extends Plugin {
 				return;
 			}
 
-			editor.replaceSelection(review.text);
 			new Notice('Selection formatted.');
 
 			if (review.renameTo && activeFile) {

@@ -82,3 +82,170 @@ available in the app when your plugin is enabled.
     gap: 8px;
     margin-top: 12px;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   OllaMark: Inline Diff Styles (Cursor-style suggestions)
+   ────────────────────────────────────────────────────────────────── */
+
+/* Strikethrough for deletions and the "old" part of replacements */
+.ollamark-inline-strikethrough {
+    text-decoration: line-through;
+    text-decoration-color: var(--text-error);
+    opacity: 0.6;
+    background-color: rgba(231, 76, 60, 0.15);
+    border-radius: 2px;
+}
+
+/* Ghost text for insertions and the "new" part of replacements */
+.ollamark-inline-ghost {
+    color: var(--text-success, #2ecc71);
+    background-color: rgba(46, 204, 113, 0.15);
+    border-radius: 2px;
+    padding: 0 2px;
+    font-style: italic;
+    white-space: pre-wrap;
+}
+
+/* Accept/Reject inline buttons container */
+.ollamark-inline-buttons {
+    display: inline-flex;
+    gap: 2px;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* Individual inline button styling */
+.ollamark-inline-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    font-size: 11px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+    line-height: 1;
+    padding: 0;
+}
+
+.ollamark-inline-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.ollamark-inline-accept {
+    background-color: var(--interactive-success, #2ecc71);
+    color: white;
+}
+
+.ollamark-inline-accept:hover {
+    background-color: var(--text-success, #27ae60);
+}
+
+.ollamark-inline-reject {
+    background-color: var(--text-error, #e74c3c);
+    color: white;
+}
+
+.ollamark-inline-reject:hover {
+    background-color: #c0392b;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Toolbar (Accept All / Reject All)
+   ────────────────────────────────────────────────────────────────── */
+
+.ollamark-diff-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    font-size: var(--font-ui-small);
+}
+
+.ollamark-toolbar-info {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.ollamark-toolbar-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.ollamark-toolbar-btn {
+    padding: 4px 12px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: var(--font-ui-small);
+    font-weight: 500;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.ollamark-toolbar-btn:hover {
+    transform: translateY(-1px);
+}
+
+.ollamark-toolbar-accept {
+    background-color: var(--interactive-success, #2ecc71);
+    color: white;
+}
+
+.ollamark-toolbar-accept:hover {
+    background-color: var(--text-success, #27ae60);
+}
+
+.ollamark-toolbar-reject {
+    background-color: var(--background-modifier-border);
+    color: var(--text-normal);
+}
+
+.ollamark-toolbar-reject:hover {
+    background-color: var(--text-error, #e74c3c);
+    color: white;
+}
+
+/* ──────────────────────────────────────────────────────────────────
+   Title Suggestion Widget
+   ────────────────────────────────────────────────────────────────── */
+
+.ollamark-title-suggestion {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    background-color: var(--background-secondary-alt);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    font-size: var(--font-ui-small);
+}
+
+.ollamark-title-label {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.ollamark-title-old {
+    text-decoration: line-through;
+    color: var(--text-error);
+    opacity: 0.7;
+}
+
+.ollamark-title-arrow {
+    color: var(--text-muted);
+}
+
+.ollamark-title-new {
+    color: var(--text-success, #2ecc71);
+    font-weight: 600;
+}

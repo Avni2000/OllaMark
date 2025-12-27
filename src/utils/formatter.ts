@@ -9,7 +9,7 @@ interface FormatMarkdownOptions {
 
 function stripCodeFence(output: string): string {
     const fenceMatch = output.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/i);
-    return fenceMatch ? fenceMatch[1] : output;
+    return fenceMatch?.[1] ?? output;
 }
 
 export async function formatMarkdownWithAI(options: FormatMarkdownOptions): Promise<string> {
