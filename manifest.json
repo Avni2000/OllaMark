@@ -6,5 +6,6 @@
 	"description": "Ollama in Obsidian: Format and write with local LLMs directly in your notes.",
 	"author": "Avni Badiwale",
 	"authorUrl": "https://github.com/Avni2000",
-	"isDesktopOnly": false
+	"isDesktopOnly": true,
+	"repo": "Avni2000/obsidian-ollamark"
 }
