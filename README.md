@@ -1,90 +1,127 @@
-# Obsidian Sample Plugin
+# OllaMark
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+> This text was auto-formatted with [OllaMark](https://github.com/Avni2000/OllaMark)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+## The Problem
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+I *hate* formatting text in markdown and making it look pretty. It takes forever. So what if I build you an extension that solves that problem *safely*, *locally*, and *just works without an API key*? All I ask of you is some raw computing power.
 
-## First time developing plugins?
+I don't like to make broad generalizations, but there is very little generative natural language models are good at better than taking some input and matching it to a statistically more pleasing format. I'm biased when I say this, but I recommend giving it a try.
 
-Quick starting guide for new plugin devs:
+## What It Does
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### Demo
 
-## Releasing new releases
+[!Demo](https://youtu.be/Tst1frCahvU)
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+TLDW:
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+1. Highlight some rough text
+2. Hit Hotkey or right click
+3. Format rough text with local Ollama instance
+...
+4. Profit!
 
-## Adding your plugin to the community plugin list
+You now have (ideally) well formatted markdown. Adjust the prompt to tune the output, and feel free to play around with the model!
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
 
-## How to use
+## Features
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+- **Inline diff view**: Accept or reject suggested changes without leaving your editor
+- **Custom prompts**: Right-click your selection and describe what you want in plain English
+- **Preset commands**: Hotkey-enabled quick actions for common formatting tasks:
+  - Add headings to organize content
+  - Make text more concise
+  - Convert to bullet points
+  - Fix grammar only (no style changes)
+  - Improve paragraph flow
+- **Context menu integration**: Right click any selection to format with AI
+- **Completely offline**: All processing happens on your machine via Ollama
 
-## Manually installing the plugin
+## Installation
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+### Prerequisites
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+1. Install [Ollama](https://ollama.ai) on your system
+2. Pull a model. I use gemma3:4b, see FAQ for more.
+   ```bash
+   ollama pull gemma3:4b
+   ```
+3. Make sure Ollama is running (usually starts automatically)
 
-## Funding URL
+### Install the Plugin
 
-You can include funding URLs where people who use your plugin can financially support it.
+#### From Obsidian Community Plugins (Coming Soon)
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+1. Open **Settings → Community plugins**
+2. Disable Safe mode
+3. Search for "OllaMark"
+4. Click Install, then Enable
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+#### Manual Installation
+
+1. Download the latest release from [GitHub](https://github.com/Avni2000/OllaMark/releases)
+2. Extract `main.js`, `manifest.json`, and `styles.css` to:
+   ```
+   <vault>/.obsidian/plugins/OllaMark/
+   ```
+3. Reload Obsidian
+4. Enable OllaMark in **Settings → Community plugins**
+
+## Usage
+
+### Hotkeys
+
+Assign keyboard shortcuts to preset prompts:
+1. Go to **Settings → Hotkeys**
+2. Search for "OllaMark"
+3. Assign keys to your favorite presets
+
+## Configuration
+
+Open **Settings → OllaMark** to configure:
+
+- **Ollama URL**: Where Ollama is running (default: `http://localhost:11434`)
+- **Model**: Choose from your locally installed models
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Dev mode with hot reload
+npm run dev
+
+# Production build
+npm run build
 ```
 
-If you have multiple URLs, you can also do:
+## Why Local?
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+Your notes are private. Your thoughts are private. Sending them to external APIs, even "private" ones, is a risk I'm not willing to take with my own notes, so I won't ask you to take it with yours.
 
-## API Documentation
+Ollama runs entirely on your machine. Nothing leaves. No telemetry, no analytics, no cloud processing. Just you, your vault, and your GPU/CPU doing the work.
 
-See https://docs.obsidian.md
+## FAQ
+
+**Q: Which models work best?**  
+A: I have no idea. I've experimented with a few, but not enough to make a proper suggestion. I'm just running an instance of gemma3:4b. Obviously, larger models give better results but run slower and can eat up memory really quickly. Perhaps someone willing to run benchmarks will come back and contribute more information.
+
+**Q: Does this work on mobile?**  
+A: Not yet. Ollama requires a desktop environment. Mobile support would require a remote Ollama instance, which defeats the privacy purpose.
+
+**Q: Can I use this with remote Ollama?**
+A: Yes, change the Ollama URL in settings. But be aware you're sending note content over the network.
+
+**Q: Does this replace my writing?**  
+A: No. It's an autoformatter, not a content generator. It cleans up what you've already written. Think of it like a code formatter like Prettier, or spellcheck with better context.
+
+## Contributing
+
+Issues and PRs welcome as always.
+
+---
+
+Built by [Avni Badiwale](https://github.com/Avni2000) because I got tired of manually formatting markdown notes.
+
