@@ -12,7 +12,7 @@ I don't like to make broad generalizations, but there is very little generative 
 
 ### Demo Video
 
-[![Demo](README-assets/OllaMark.png)](https://youtu.be/Tst1frCahvU)
+[![Demo](README-assets/image_with_play_button.png)](https://youtu.be/Tst1frCahvU)
 
 TLDW:
 
