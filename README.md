@@ -61,9 +61,9 @@ You now have (ideally) well formatted markdown. Adjust the prompt to tune the ou
 #### Manual Installation
 
 1. Download the latest release from [GitHub](https://github.com/Avni2000/OllaMark/releases)
-2. Extract `main.js`, `manifest.json`, and `styles.css` to:
+2. Extract the release folder to 
    ```
-   <vault>/.obsidian/plugins/OllaMark/
+   <vault>/.obsidian/plugins/<release-name>
    ```
 3. Reload Obsidian
 4. Enable OllaMark in **Settings → Community plugins**
