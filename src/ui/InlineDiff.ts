@@ -384,9 +384,14 @@ function buildBlockDecorations(state: EditorState): DecorationSet {
 
     const builder = new RangeSetBuilder<Decoration>();
 
-    // Add toolbar at position 0
+    // Find the position of the first suggestion to place toolbar above it
+    const firstSuggestionPos = suggestions.length > 0 
+        ? Math.min(...suggestions.map(s => s.from))
+        : 0;
+
+    // Add toolbar at the start of the selection (first suggestion)
     if (suggestions.length > 0) {
-        builder.add(0, 0, Decoration.widget({
+        builder.add(firstSuggestionPos, firstSuggestionPos, Decoration.widget({
             widget: new ToolbarWidget(
                 suggestions.length,
                 !!proposedTitle,

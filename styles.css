@@ -312,6 +312,13 @@ available in the app when your plugin is enabled.
     overflow-y: auto;
 }
 
+.ollamark-inline-dropdown.ollamark-dropup {
+    top: auto;
+    bottom: 100%;
+    margin-top: 0;
+    margin-bottom: 2px;
+}
+
 .ollamark-inline-dropdown.ollamark-hidden {
     display: none;
 }

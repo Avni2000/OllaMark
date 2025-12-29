@@ -51,9 +51,11 @@ class InlinePromptWidget {
 	private container: HTMLElement;
 	private input: HTMLInputElement;
 	private dropdown: HTMLElement;
+	private dropdownToggle: HTMLElement;
 	private dropdownItems: HTMLElement[] = [];
 	private selectedIndex = -1;
 	private isDropdownOpen = false;
+	private isDropup = false;
 	private resolve: (value: InlinePromptResult | null) => void;
 
 	constructor(
@@ -64,6 +66,7 @@ class InlinePromptWidget {
 		this.container = this.createContainer();
 		this.input = this.container.querySelector('.ollamark-inline-input') as HTMLInputElement;
 		this.dropdown = this.container.querySelector('.ollamark-inline-dropdown') as HTMLElement;
+		this.dropdownToggle = this.container.querySelector('.ollamark-dropdown-toggle') as HTMLElement;
 		this.dropdownItems = Array.from(this.dropdown.querySelectorAll('.ollamark-dropdown-item'));
 	}
 
@@ -139,6 +142,33 @@ class InlinePromptWidget {
 			// Show above cursor instead
 			this.container.style.top = `${this.coords.top - rect.height - 4}px`;
 		}
+
+		// Check if dropdown should open upward (dropup)
+		this.checkDropupNeeded();
+	}
+
+	private checkDropupNeeded(): void {
+		const rect = this.container.getBoundingClientRect();
+		const viewportHeight = window.innerHeight;
+		
+		// Estimate dropdown height (based on number of items)
+		const estimatedDropdownHeight = this.dropdownItems.length * 40; // approximate height per item
+		
+		// Check if dropdown would overflow bottom
+		const wouldOverflowBottom = rect.bottom + estimatedDropdownHeight > viewportHeight - 10;
+		
+		// Check if there's enough space above
+		const hasSpaceAbove = rect.top > estimatedDropdownHeight + 10;
+		
+		this.isDropup = wouldOverflowBottom && hasSpaceAbove;
+		
+		if (this.isDropup) {
+			this.dropdown.classList.add('ollamark-dropup');
+			this.dropdownToggle.textContent = '▲';
+		} else {
+			this.dropdown.classList.remove('ollamark-dropup');
+			this.dropdownToggle.textContent = '▼';
+		}
 	}
 
 	private handleKeyDown = (e: KeyboardEvent): void => {
@@ -205,10 +235,12 @@ class InlinePromptWidget {
 	};
 
 	private openDropdown(): void {
+		this.checkDropupNeeded();
 		this.dropdown.classList.remove('ollamark-hidden');
 		this.isDropdownOpen = true;
 		this.selectedIndex = 0;
 		this.updateHighlight();
+		this.dropdownToggle.textContent = this.isDropup ? '▲' : '▼';
 	}
 
 	private closeDropdown(): void {
@@ -216,6 +248,7 @@ class InlinePromptWidget {
 		this.isDropdownOpen = false;
 		this.selectedIndex = -1;
 		this.updateHighlight();
+		this.dropdownToggle.textContent = this.isDropup ? '▲' : '▼';
 	}
 
 	private moveSelection(delta: number): void {
