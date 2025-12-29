@@ -201,15 +201,18 @@ function escapeWikilinks(text: string): string {
     
     let result = text;
     
-    // First, temporarily replace code blocks
+    // First, temporarily replace code blocks (and unescape any pre-escaped brackets inside them)
     result = result.replace(codeBlockRegex, (match) => {
-        codeBlocks.push(match);
+        // Unescape brackets that the AI may have pre-escaped inside code blocks
+        const unescaped = match.replace(/\\\[/g, '[').replace(/\\\]/g, ']');
+        codeBlocks.push(unescaped);
         return `__CODEBLOCK_${blockCounter++}__`;
     });
     
-    // Then, temporarily replace inline code
+    // Then, temporarily replace inline code (and unescape any pre-escaped brackets inside them)
     result = result.replace(inlineCodeRegex, (match) => {
-        inlineCodes.push(match);
+        const unescaped = match.replace(/\\\[/g, '[').replace(/\\\]/g, ']');
+        inlineCodes.push(unescaped);
         return `__INLINECODE_${inlineCounter++}__`;
     });
     
