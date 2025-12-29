@@ -11,30 +11,42 @@ interface FormatMarkdownOptions {
     text: string;
     noteTitle?: string;
     formatComments?: boolean;
+    /** Custom user prompt to guide the AI formatting */
+    customPrompt?: string;
 }
 
 
 
 export async function formatMarkdownWithAI(options: FormatMarkdownOptions): Promise<string> {
-	const { ollamaUrl, model, text, noteTitle, formatComments = true } = options;
+	const { ollamaUrl, model, text, noteTitle, formatComments = true, customPrompt } = options;
 	const titleLine = noteTitle ? `Title: ${noteTitle}\n` : '';
 
 	// Extract and preserve HTML comments if formatComments is true
 	const { textToFormat, comments } = formatComments ? { textToFormat: text, comments: [] } : extractComments(text);
 
+	// Build the system prompt based on whether a custom prompt is provided
+	const systemContent = customPrompt
+		? `You are a skilled markdown editor. Follow the user's instructions to improve the text. Respond with markdown only.`
+		: 'You are a skilled markdown editor. Improve readability, structure, grammar, and formatting. Enhance clarity and flow while keeping the core meaning intact. Respond with markdown only.';
+
+	// Build the user prompt
+	const userContent = customPrompt
+		? `${titleLine}Instructions: ${customPrompt}\n\nFormat the following markdown selection according to the instructions above:\n---\n${textToFormat}\n---`
+		: `${titleLine}Format the following markdown selection:\n---\n${textToFormat}\n---`;
+
 	const messages = [
 		{
 			role: 'system',
-			content: 'You are a meticulous markdown editor. Improve readability, structure, and formatting without changing meaning. Respond with markdown only.'
+			content: systemContent
 		},
 		{
 			role: 'user',
-			content: `${titleLine}Format the following markdown selection:\n---\n${textToFormat}\n---`
+			content: userContent
 		}
 	];
 
 	const response = await callOllama(ollamaUrl, model, messages);
-	const formatted = stripCodeFence(response.trim());
+	const formatted = escapeWikilinks(stripCodeFence(response.trim()));
 
 	// Restore comments if they were extracted
 	return formatComments ? formatted : restoreComments(formatted, comments);
@@ -48,7 +60,8 @@ export async function formatSelectionWithAI(
 	settings: { ollamaUrl: string; ollamaModel: string; formatComments: boolean },
 	buildSuggestions: Function,
 	showInlineSuggestions: Function,
-	renameNoteIfNeeded: (file: TFile, requestedTitle: string, app: App) => Promise<void>
+	renameNoteIfNeeded: (file: TFile, requestedTitle: string, app: App) => Promise<void>,
+	customPrompt?: string
 ): Promise<void> {
 	const selection = editor.getSelection();
 	if (!selection.trim()) {
@@ -61,7 +74,10 @@ export async function formatSelectionWithAI(
 	const selectionTo = editor.posToOffset(editor.getCursor('to'));
 
 	const activeFile = app.workspace.getActiveFile();
-	const runningNotice = new Notice('Formatting selection with AI...', 8000);
+	const noticeMessage = customPrompt 
+		? 'Formatting selection with custom prompt...' 
+		: 'Formatting selection with AI...';
+	const runningNotice = new Notice(noticeMessage, 8000);
 
 	try {
 		const formattedResponse = await formatMarkdownWithAI({
@@ -70,11 +86,12 @@ export async function formatSelectionWithAI(
 			text: selection,
 			noteTitle: activeFile?.basename,
 			formatComments: settings.formatComments,
+			customPrompt,
 		});
 		runningNotice.hide();
 
-		const { content, proposedTitle } = extractTitle(formattedResponse);
-		if (content === selection && (!proposedTitle || proposedTitle === activeFile?.basename)) {
+		const { content } = extractTitle(formattedResponse);
+		if (content === selection) {
 			new Notice('AI kept the selection unchanged.');
 			return;
 		}
@@ -97,14 +114,13 @@ export async function formatSelectionWithAI(
 		// Build suggestions from the diff
 		const suggestions = buildSuggestions(selection, content, selectionFrom, selectionTo);
 
-		if (suggestions.length === 0 && !proposedTitle) {
+		if (suggestions.length === 0) {
 			new Notice('AI kept the selection unchanged.');
 			return;
 		}
 
 		// Show inline suggestions and wait for user to accept/reject
 		const review = await showInlineSuggestions(editorView, suggestions, {
-			proposedTitle,
 			currentTitle: activeFile?.basename,
 		});
 
@@ -114,10 +130,6 @@ export async function formatSelectionWithAI(
 		}
 
 		new Notice('Selection formatted.');
-
-		if (review.renameTo && activeFile) {
-			await renameNoteIfNeeded(activeFile, review.renameTo, app);
-		}
 	} catch (error) {
 		runningNotice.hide();
 		console.error('AI formatting failed:', error);
@@ -172,6 +184,58 @@ export async function formatSelectionWithAI(
 function stripCodeFence(output: string): string {
     const fenceMatch = output.match(/^```(?:markdown|md)?\n([\s\S]*?)\n```$/i);
     return fenceMatch?.[1] ?? output;
+}
+
+function escapeWikilinks(text: string): string {
+    // Escape brackets except when they're part of markdown links [text](url) or inside code blocks
+    const markdownLinkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+    const codeBlockRegex = /```[\s\S]*?```/g;
+    const inlineCodeRegex = /`[^`]*`/g;
+    
+    const markdownLinks: string[] = [];
+    const codeBlocks: string[] = [];
+    const inlineCodes: string[] = [];
+    let linkCounter = 0;
+    let blockCounter = 0;
+    let inlineCounter = 0;
+    
+    let result = text;
+    
+    // First, temporarily replace code blocks
+    result = result.replace(codeBlockRegex, (match) => {
+        codeBlocks.push(match);
+        return `__CODEBLOCK_${blockCounter++}__`;
+    });
+    
+    // Then, temporarily replace inline code
+    result = result.replace(inlineCodeRegex, (match) => {
+        inlineCodes.push(match);
+        return `__INLINECODE_${inlineCounter++}__`;
+    });
+    
+    // Then, temporarily replace markdown links
+    result = result.replace(markdownLinkRegex, (match) => {
+        markdownLinks.push(match);
+        return `__MDLINK_${linkCounter++}__`;
+    });
+    
+    // Now escape all remaining brackets
+    result = result.replace(/\[/g, '\\[').replace(/\]/g, '\\]');
+    
+    // Restore everything in reverse order
+    markdownLinks.forEach((link, index) => {
+        result = result.replace(`__MDLINK_${index}__`, link);
+    });
+    
+    inlineCodes.forEach((code, index) => {
+        result = result.replace(`__INLINECODE_${index}__`, code);
+    });
+    
+    codeBlocks.forEach((block, index) => {
+        result = result.replace(`__CODEBLOCK_${index}__`, block);
+    });
+    
+    return result;
 }
 
 interface CommentPlaceholder {

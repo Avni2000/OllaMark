@@ -7,6 +7,7 @@ import { EditorView } from '@codemirror/view';
 import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
 import { formatMarkdownWithAI, formatSelectionWithAI, renameNoteIfNeeded } from './utils/formatter';
 import { inlineDiffExtension, buildSuggestions, showInlineSuggestions, InlineDiffOutcome } from './ui/InlineDiff';
+import { showInlinePrompt, PRESET_PROMPTS } from './ui/InlinePrompt';
 
 export default class MyPlugin extends Plugin {
 	settings: MyPluginSettings;
@@ -38,6 +39,26 @@ export default class MyPlugin extends Plugin {
 			}
 		});
 
+		// Command for custom prompt formatting (inline widget)
+		this.addCommand({
+			id: 'format-selection-with-custom-prompt',
+			name: 'Format selection with custom prompt',
+			editorCallback: async (editor: Editor) => {
+				await this.formatWithCustomPrompt(editor);
+			}
+		});
+
+		// Register commands for each preset prompt (so users can assign hotkeys)
+		for (const preset of PRESET_PROMPTS) {
+			this.addCommand({
+				id: `format-preset-${preset.id}`,
+				name: `Format: ${preset.name}`,
+				editorCallback: async (editor: Editor) => {
+					await this.formatWithPreset(editor, preset.prompt);
+				}
+			});
+		}
+
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SampleSettingTab(this.app, this));
@@ -67,7 +88,63 @@ export default class MyPlugin extends Plugin {
 					);
 				});
 			});
+			menu.addItem(item => {
+				item.setTitle('Format with custom prompt...');
+				item.setIcon('ollamark');
+				item.onClick(() => {
+					void this.formatWithCustomPrompt(editor);
+				});
+			});
 		}));
+	}
+
+	/**
+	 * Opens the inline prompt widget and formats the selection with user's instructions.
+	 */
+	private async formatWithCustomPrompt(editor: Editor): Promise<void> {
+		const selection = editor.getSelection();
+		if (!selection.trim()) {
+			new Notice('Select text to format before using AI.');
+			return;
+		}
+
+		const result = await showInlinePrompt(editor);
+
+		if (!result) {
+			// User cancelled
+			return;
+		}
+
+		await formatSelectionWithAI(
+			editor,
+			this.app,
+			this.settings,
+			buildSuggestions,
+			showInlineSuggestions,
+			renameNoteIfNeeded,
+			result.prompt
+		);
+	}
+
+	/**
+	 * Formats selection with a preset prompt (for hotkey-bound commands).
+	 */
+	private async formatWithPreset(editor: Editor, prompt: string): Promise<void> {
+		const selection = editor.getSelection();
+		if (!selection.trim()) {
+			new Notice('Select text to format before using AI.');
+			return;
+		}
+
+		await formatSelectionWithAI(
+			editor,
+			this.app,
+			this.settings,
+			buildSuggestions,
+			showInlineSuggestions,
+			renameNoteIfNeeded,
+			prompt
+		);
 	}
 
 

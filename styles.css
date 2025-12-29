@@ -249,3 +249,85 @@ available in the app when your plugin is enabled.
     color: var(--text-success, #2ecc71);
     font-weight: 600;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Inline Prompt Widget
+   ───────────────────────────────────────────────────────────── */
+
+.ollamark-inline-prompt {
+    font-family: var(--font-interface);
+    font-size: var(--font-ui-small);
+}
+
+.ollamark-inline-prompt-inner {
+    display: flex;
+    align-items: center;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+}
+
+.ollamark-inline-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-normal);
+    font-size: var(--font-ui-small);
+    outline: none;
+    min-width: 280px;
+}
+
+.ollamark-inline-input::placeholder {
+    color: var(--text-faint);
+}
+
+.ollamark-dropdown-toggle {
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    transition: color 0.15s;
+}
+
+.ollamark-dropdown-toggle:hover {
+    color: var(--text-normal);
+}
+
+.ollamark-inline-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    background: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.ollamark-inline-dropdown.ollamark-hidden {
+    display: none;
+}
+
+.ollamark-dropdown-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.ollamark-dropdown-item:hover,
+.ollamark-dropdown-item-selected {
+    background: var(--background-modifier-hover);
+}
+
+.ollamark-dropdown-item-selected {
+    background: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
