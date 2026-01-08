@@ -2,15 +2,14 @@
  * @file main.ts
  * @description Main entry point for the OllaMark Obsidian plugin.
  */
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile, addIcon } from 'obsidian';
-import { EditorView } from '@codemirror/view';
-import { DEFAULT_SETTINGS, MyPluginSettings, SampleSettingTab } from "./settings";
-import { formatMarkdownWithAI, formatSelectionWithAI, renameNoteIfNeeded } from './utils/formatter';
-import { inlineDiffExtension, buildSuggestions, showInlineSuggestions, InlineDiffOutcome } from './ui/InlineDiff';
+import { Editor, Notice, Plugin, addIcon } from 'obsidian';
+import { DEFAULT_SETTINGS, OllaMarkSettings, OllaMarkSettingTab } from './settings';
+import { formatSelectionWithAI, renameNoteIfNeeded } from './utils/formatter';
+import { inlineDiffExtension, buildSuggestions, showInlineSuggestions } from './ui/InlineDiff';
 import { showInlinePrompt, PRESET_PROMPTS } from './ui/InlinePrompt';
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+export default class OllaMarkPlugin extends Plugin {
+	settings: OllaMarkSettings;
 
 	async onload() {
 		await this.loadSettings();
@@ -61,16 +60,10 @@ export default class MyPlugin extends Plugin {
 
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+		this.addSettingTab(new OllaMarkSettingTab(this.app, this));
 
 		// Register the inline diff CM6 extension
 		this.registerEditorExtension(inlineDiffExtension);
-		// this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-		// 	new Notice("Click");
-		// });
-
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
 
 		this.registerEvent(this.app.workspace.on('editor-menu', (menu, editor) => {
 			if (!editor.getSelection()) return;
@@ -153,7 +146,7 @@ export default class MyPlugin extends Plugin {
 	}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<MyPluginSettings>);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<OllaMarkSettings>);
 	}
 
 	async saveSettings() {

@@ -1,6 +1,6 @@
 # OllaMark
 
-> This text was auto-formatted with [OllaMark](https://github.com/Avni2000/OllaMark)
+> This text was prettified with [OllaMark](https://github.com/Avni2000/OllaMark)
 
 ## The Problem
 
@@ -18,11 +18,11 @@ TLDW:
 
 1. Highlight some rough text
 2. Hit Hotkey or right click
-3. Format rough text with local Ollama instance
+3. Prettify rough text with local Ollama instance
 ...
 4. Profit!
 
-You now have (ideally) well formatted markdown. Adjust the prompt to tune the output, and feel free to play around with the model!
+You now have (ideally) prettified markdown. Adjust the prompt to tune the output, and feel free to play around with the model!
 
 
 ## Features
@@ -35,7 +35,7 @@ You now have (ideally) well formatted markdown. Adjust the prompt to tune the ou
   - Convert to bullet points
   - Fix grammar only (no style changes)
   - Improve paragraph flow
-- **Context menu integration**: Right click any selection to format with AI
+- **Context menu integration**: Right click any selection to prettify with AI
 - **Completely offline**: All processing happens on your machine via Ollama
 
 ## Installation
@@ -115,13 +115,8 @@ A: Not yet. Ollama requires a desktop environment. Mobile support would require 
 A: Yes, change the Ollama URL in settings. But be aware you're sending note content over the network.
 
 **Q: Does this replace my writing?**  
-A: No. It's an autoformatter, not a content generator. It cleans up what you've already written. Think of it like a code formatter like Prettier, or spellcheck with better context.
+A: No. It's not a content generator. It cleans up what you've already written. Think of it like a code formatter like Prettier, or spellcheck with better context.
 
 ## Contributing
 
 Issues and PRs welcome as always.
-
----
-
-Built by [Avni Badiwale](https://github.com/Avni2000) because I got tired of manually formatting markdown notes.
-

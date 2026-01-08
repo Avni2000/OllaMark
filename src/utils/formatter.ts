@@ -3,7 +3,7 @@
  * @description Utilities for formatting markdown content using AI.
  */
 import { callOllama } from './ollama';
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, TFile, addIcon } from 'obsidian';
+import { App, Editor, Notice, TFile } from 'obsidian';
 import { EditorView } from '@codemirror/view';
 interface FormatMarkdownOptions {
     ollamaUrl: string;
@@ -58,8 +58,8 @@ export async function formatSelectionWithAI(
 	editor: Editor,
 	app: App,
 	settings: { ollamaUrl: string; ollamaModel: string; formatComments: boolean },
-	buildSuggestions: Function,
-	showInlineSuggestions: Function,
+	buildSuggestions: (original: string, formatted: string, from: number, to: number) => unknown[],
+	showInlineSuggestions: (editorView: EditorView, suggestions: unknown[], options: { currentTitle?: string }) => Promise<unknown>,
 	renameNoteIfNeeded: (file: TFile, requestedTitle: string, app: App) => Promise<void>,
 	customPrompt?: string
 ): Promise<void> {
@@ -98,7 +98,7 @@ export async function formatSelectionWithAI(
 
 		// Get the EditorView from Obsidian's editor
 		// @ts-expect-error - accessing internal CM6 editor
-		const editorView: EditorView | undefined = editor.cm;
+		const editorView = editor.cm as EditorView | undefined;
 		if (!editorView) {
 			new Notice('Could not access editor view for inline diff.');
 			return;
@@ -112,8 +112,7 @@ export async function formatSelectionWithAI(
 		}
 
 		// Build suggestions from the diff
-		const suggestions = buildSuggestions(selection, content, selectionFrom, selectionTo);
-
+	const suggestions = buildSuggestions(selection, content, selectionFrom, selectionTo);
 		if (suggestions.length === 0) {
 			new Notice('AI kept the selection unchanged.');
 			return;
@@ -130,9 +129,10 @@ export async function formatSelectionWithAI(
 		}
 
 		new Notice('Selection formatted.');
-	} catch (error) {
+	} catch (err: unknown) {
 		runningNotice.hide();
-		console.error('AI formatting failed:', error);
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+		console.error('AI formatting failed:', errorMessage);
 		new Notice('Could not format selection. See console for details.');
 	}
 }

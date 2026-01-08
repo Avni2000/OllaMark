@@ -1,23 +1,23 @@
 import {App, PluginSettingTab, Setting} from "obsidian";
-import MyPlugin from "./main";
+import type OllaMarkPlugin from "./main";
 import { getAvailableModels } from "./utils/ollama";
 
-export interface MyPluginSettings {
+export interface OllaMarkSettings {
 	ollamaUrl: string;
 	ollamaModel: string;
 	formatComments: boolean;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: OllaMarkSettings = {
 	ollamaUrl: 'http://localhost:11434',
 	ollamaModel: '',
 	formatComments: true
 }
 
-export class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+export class OllaMarkSettingTab extends PluginSettingTab {
+	declare plugin: OllaMarkPlugin & { settings: OllaMarkSettings; saveSettings: () => Promise<void> };
 
-	constructor(app: App, plugin: MyPlugin) {
+	constructor(app: App, plugin: OllaMarkPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -37,13 +37,13 @@ export class SampleSettingTab extends PluginSettingTab {
 					this.plugin.settings.ollamaUrl = value;
 					await this.plugin.saveSettings();
 					// Refresh the models dropdown when URL changes
-					this.display();
+					void this.display();
 				}));
 
 		// Create a container for the model dropdown
 		const modelSetting = new Setting(containerEl)
-			.setName('Ollama Model')
-			.setDesc('Model to use for chat');
+			.setName('Ollama model')
+			.setDesc('Model to use for formatting');
 
 		// Fetch and populate models
 		this.populateModelDropdown(modelSetting);
@@ -59,12 +59,16 @@ export class SampleSettingTab extends PluginSettingTab {
 				}));
 	}
 
-	private async populateModelDropdown(setting: Setting) {
+	private populateModelDropdown(setting: Setting): void {
+		void this.populateModelDropdownAsync(setting);
+	}
+
+	private async populateModelDropdownAsync(setting: Setting): Promise<void> {
 		try {
 			const models = await getAvailableModels(this.plugin.settings.ollamaUrl);
 			
 			if (models.length === 0) {
-				setting.setDesc('No models found. Ensure Ollama is running at the specified URL.');
+			setting.setDesc('No models found. Ensure Ollama is running at the specified URL.');
 				setting.addText(text => text
 					.setPlaceholder('Enter model name manually')
 					.setValue(this.plugin.settings.ollamaModel)
@@ -94,7 +98,8 @@ export class SampleSettingTab extends PluginSettingTab {
 			}
 		} catch (error) {
 			console.error('Error fetching models:', error);
-			setting.setDesc(`Error fetching models: ${error}. You can enter the model name manually.`);
+			const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+			setting.setDesc(`Error fetching models: ${errorMessage}. You can enter the model name manually.`);
 			setting.addText(text => text
 				.setPlaceholder('Enter model name manually')
 				.setValue(this.plugin.settings.ollamaModel)

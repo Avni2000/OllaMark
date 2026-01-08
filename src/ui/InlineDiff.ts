@@ -308,7 +308,7 @@ class ToolbarWidget extends WidgetType {
 
         const acceptAllBtn = document.createElement('button');
         acceptAllBtn.className = 'ollamark-toolbar-btn ollamark-toolbar-accept';
-        acceptAllBtn.textContent = 'Accept All';
+        acceptAllBtn.textContent = 'Accept all';
         acceptAllBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -317,7 +317,7 @@ class ToolbarWidget extends WidgetType {
 
         const rejectAllBtn = document.createElement('button');
         rejectAllBtn.className = 'ollamark-toolbar-btn ollamark-toolbar-reject';
-        rejectAllBtn.textContent = 'Reject All';
+        rejectAllBtn.textContent = 'Reject all';
         rejectAllBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -574,14 +574,12 @@ const inlineDecorationPlugin = ViewPlugin.fromClass(
 
 // Track title acceptance state separately
 let titleAccepted = false;
-let titleRejected = false;
 let storedProposedTitle: string | undefined = undefined;
 
 function acceptTitle(view: EditorView) {
     const state = view.state.field(suggestionStateField);
     storedProposedTitle = state.proposedTitle;
     titleAccepted = true;
-    titleRejected = false;
     // Update state to remove title widget (by clearing proposedTitle)
     view.dispatch({
         effects: setSuggestionsEffect.of({
@@ -596,7 +594,6 @@ function acceptTitle(view: EditorView) {
 
 function rejectTitle(view: EditorView) {
     titleAccepted = false;
-    titleRejected = true;
     storedProposedTitle = undefined;
     // Update state to remove title widget
     const state = view.state.field(suggestionStateField);
@@ -689,7 +686,6 @@ function acceptAllSuggestions(view: EditorView) {
 
     // Reset title state
     titleAccepted = false;
-    titleRejected = false;
     storedProposedTitle = undefined;
 }
 
@@ -707,7 +703,6 @@ function rejectAllSuggestions(view: EditorView) {
 
     // Reset title state
     titleAccepted = false;
-    titleRejected = false;
     storedProposedTitle = undefined;
 }
 
@@ -723,7 +718,6 @@ function checkAndResolve(view: EditorView) {
         });
         // Reset title state
         titleAccepted = false;
-        titleRejected = false;
         storedProposedTitle = undefined;
     }
 }
@@ -844,7 +838,6 @@ export function showInlineSuggestions(
 ): Promise<InlineDiffOutcome | null> {
     // Reset title state
     titleAccepted = false;
-    titleRejected = false;
     storedProposedTitle = undefined;
 
     // Only show title suggestion if it's actually different from current title

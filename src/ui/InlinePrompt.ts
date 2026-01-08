@@ -27,7 +27,7 @@ export type PresetPromptId = typeof PRESET_PROMPTS[number]['id'];
 export function showInlinePrompt(editor: Editor): Promise<InlinePromptResult | null> {
 	return new Promise((resolve) => {
 		// @ts-expect-error - accessing internal CM6 editor
-		const editorView: EditorView | undefined = editor.cm;
+		const editorView = editor.cm as EditorView | undefined;
 		if (!editorView) {
 			resolve(null);
 			return;
@@ -35,16 +35,24 @@ export function showInlinePrompt(editor: Editor): Promise<InlinePromptResult | n
 
 		// Get cursor position for placement
 		const cursor = editor.getCursor('to');
-		const coords = editorView.coordsAtPos(editor.posToOffset(cursor));
-		if (!coords) {
-			resolve(null);
-			return;
-		}
+	const offset = editor.posToOffset(cursor);
+	let coords;
+	try {
+		coords = editorView.coordsAtPos(offset);
+	} catch {
+		// coordsAtPos may throw if position is invalid
+		resolve(null);
+		return;
+	}
+	if (!coords) {
+		resolve(null);
+		return;
+	}
 
-		// Create the inline widget
-		const widget = new InlinePromptWidget(coords, resolve);
-		widget.mount(document.body);
-	});
+	// Create the inline widget
+	const widget = new InlinePromptWidget(coords, resolve);
+	widget.mount(document.body);
+});
 }
 
 class InlinePromptWidget {
@@ -64,42 +72,65 @@ class InlinePromptWidget {
 	) {
 		this.resolve = resolve;
 		this.container = this.createContainer();
-		this.input = this.container.querySelector('.ollamark-inline-input') as HTMLInputElement;
-		this.dropdown = this.container.querySelector('.ollamark-inline-dropdown') as HTMLElement;
-		this.dropdownToggle = this.container.querySelector('.ollamark-dropdown-toggle') as HTMLElement;
+		const inputElement = this.container.querySelector('.ollamark-inline-input');
+		const dropdownElement = this.container.querySelector('.ollamark-inline-dropdown');
+		const toggleElement = this.container.querySelector('.ollamark-dropdown-toggle');
+		
+		if (!(inputElement instanceof HTMLInputElement) || !(dropdownElement instanceof HTMLElement) || !(toggleElement instanceof HTMLElement)) {
+			throw new Error('Failed to create inline prompt widget');
+		}
+		
+		this.input = inputElement;
+		this.dropdown = dropdownElement;
+		this.dropdownToggle = toggleElement;
 		this.dropdownItems = Array.from(this.dropdown.querySelectorAll('.ollamark-dropdown-item'));
 	}
 
 	private createContainer(): HTMLElement {
 		const container = document.createElement('div');
 		container.className = 'ollamark-inline-prompt';
-		container.innerHTML = `
-			<div class="ollamark-inline-prompt-inner">
-				<input type="text" class="ollamark-inline-input" placeholder="Custom instructions... (↓ for presets)" />
-				<button class="ollamark-dropdown-toggle" aria-label="Show presets">▼</button>
-			</div>
-			<div class="ollamark-inline-dropdown ollamark-hidden">
-				${PRESET_PROMPTS.map((p, i) => `
-					<div class="ollamark-dropdown-item" data-index="${i}" data-prompt="${this.escapeHtml(p.prompt)}">
-						${this.escapeHtml(p.name)}
-					</div>
-				`).join('')}
-			</div>
-		`;
+		
+		// Create elements programmatically to avoid innerHTML security issues
+		const inner = document.createElement('div');
+		inner.className = 'ollamark-inline-prompt-inner';
+		
+		const input = document.createElement('input');
+		input.type = 'text';
+		input.className = 'ollamark-inline-input';
+		input.placeholder = 'Custom instructions... (↓ for presets)';
+		
+		const toggleBtn = document.createElement('button');
+		toggleBtn.className = 'ollamark-dropdown-toggle';
+		toggleBtn.setAttribute('aria-label', 'Show presets');
+		toggleBtn.textContent = '▼';
+		
+		inner.appendChild(input);
+		inner.appendChild(toggleBtn);
+		
+		const dropdown = document.createElement('div');
+		dropdown.className = 'ollamark-inline-dropdown ollamark-hidden';
+		
+		PRESET_PROMPTS.forEach((p, i) => {
+			const item = document.createElement('div');
+			item.className = 'ollamark-dropdown-item';
+			item.dataset.index = String(i);
+			item.dataset.prompt = p.prompt;
+			item.textContent = p.name;
+			dropdown.appendChild(item);
+		});
+		
+		container.appendChild(inner);
+		container.appendChild(dropdown);
 
-		// Position below cursor
-		container.style.position = 'fixed';
-		container.style.left = `${this.coords.left}px`;
-		container.style.top = `${this.coords.bottom + 4}px`;
-		container.style.zIndex = '10000';
+		// Position below cursor using setCssStyles
+		container.setCssStyles({
+			position: 'fixed',
+			left: `${this.coords.left}px`,
+			top: `${this.coords.bottom + 4}px`,
+			zIndex: '10000',
+		});
 
 		return container;
-	}
-
-	private escapeHtml(str: string): string {
-		return str.replace(/[&<>"']/g, (c) => ({
-			'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-		}[c] || c));
 	}
 
 	mount(parent: HTMLElement): void {
